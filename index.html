@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Game Pro - Real Photos Edition</title>
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <!-- Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').catch(() => {});
+        });
+      }
+    </script>
+
+    <style>
+        :root { 
+            --primary: #6366f1; 
+            --primary-glow: #818cf8;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); 
+            --card-front: #1e293b; 
+            --card-border: #334155;
+            --text: #f8fafc;
+            --panel-bg: rgba(255, 255, 255, 0.05);
+            --matched-bg: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        body.light-mode {
+            --primary: #4f46e5;
+            --primary-glow: #6366f1;
+            --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            --card-front: #ffffff;
+            --card-border: #cbd5e1;
+            --text: #0f172a;
+            --panel-bg: rgba(0, 0, 0, 0.05);
+        }
+        
+        * {
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        html {
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        body { 
+            background: var(--bg-gradient); 
+            color: var(--text);
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 12px 8px 30px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        h1 { 
+            margin: 0; 
+            font-size: 1.8rem; 
+            font-weight: 700;
+            background: linear-gradient(90deg, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .icon-btn {
+            background: var(--panel-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+        .icon-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .controls {
+            margin: 10px 0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            max-width: 100%;
+            background: var(--panel-bg);
+            padding: 10px 15px;
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        select, input[type="text"] {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            background: var(--card-front);
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+            max-width: 160px;
+        }
+
+        .stats { 
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px; 
+            font-size: 0.95rem; 
+            font-weight: 600; 
+            background: var(--panel-bg);
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stats div span {
+            color: var(--primary-glow);
+        }
+
+        .active-player {
+            color: #34d399 !important;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .combo-badge {
+            display: none;
+            color: #f59e0b;
+            font-weight: 700;
+            animation: pop 0.3s ease;
+        }
+        
+        .game-board { 
+            display: grid; 
+            gap: 12px; 
+            perspective: 1000px;
+            width: 100%;
+            max-width: 480px;
+            justify-content: center;
+        }
+
+        .card { 
+            aspect-ratio: 1 / 1;
+            width: 100%;
+            cursor: pointer;
+            position: relative; 
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            border-radius: 14px;
+        }
+        
+        .card:hover {
+            transform: scale(1.04);
+        }
+
+        .card.flipped { transform: rotateY(180deg); }
+        
+        .card.wrong {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .card.hint-glow {
+            animation: glow 1s infinite alternate;
+        }
+
+        @keyframes glow {
+            from { box-shadow: 0 0 5px #f59e0b; }
+            to { box-shadow: 0 0 25px #f59e0b; }
+        }
+
+        .card-face { 
+            position: absolute; 
+            width: 100%; 
+            height: 100%;
+            backface-visibility: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            user-select: none;
+            overflow: hidden;
+        }
+        
+        .card-front { 
+            background: var(--card-front); 
+            border: 2px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-front::after {
+            content: '?';
+            font-weight: 700;
+            color: var(--card-border);
+            font-size: 1.4rem;
+        }
+
+        .card-back { 
+            background: #0f172a; 
+            transform: rotateY(180deg); 
+            border: 2px solid var(--primary-glow);
+            padding: 0;
+            position: relative;
+        }
+
+        .card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+
+        .card-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.5) 75%, transparent 100%);
+            color: #ffffff;
+            font-size: clamp(9px, 2.5vw, 11.5px);
+            font-weight: 600;
+            text-align: center;
+            padding: 7px 4px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: 0.2px;
+        }
+
+        .card.matched .card-back {
+            border-color: #34d399;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.7);
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        .card.matched .card-back::after {
+            content: '✓';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #10b981;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) rotateY(180deg); }
+            20%, 60% { transform: translateX(-6px) rotateY(180deg); }
+            40%, 80% { transform: translateX(6px) rotateY(180deg); }
+        }
+
+        @keyframes pulse {
+            0% { transform: rotateY(180deg) scale(1); }
+            50% { transform: rotateY(180deg) scale(1.08); }
+            100% { transform: rotateY(180deg) scale(1); }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.5); }
+            100% { transform: scale(1); }
+        }
+
+        button { 
+            padding: 8px 18px; 
+            border: none;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); 
+            color: white; 
+            border-radius: 8px;
+            font-size: 14px; 
+            font-weight: 600;
+            cursor: pointer; 
+            transition: 0.3s ease;
+        }
+
+        button:hover { 
+            transform: translateY(-2px); 
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--card-front);
+            border: 1px solid var(--card-border);
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 340px;
+            width: 90%;
+            animation: pop 0.4s ease;
+        }
+
+        .stars { font-size: 2rem; margin: 10px 0; }
+
+        .leaderboard-list {
+            text-align: left;
+            margin: 15px 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .leaderboard-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--card-border);
+            font-size: 14px;
+        }
+
+        .player-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .music-btn.playing {
+            background: #10b981;
+            border-color: #34d399;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .controls-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        @media (max-width: 540px) {
+            body { padding: 6px 6px 25px; }
+            h1 { font-size: 1.4rem; }
+            .header-container { gap: 6px; margin: 2px 0 6px; }
+            .icon-btn { padding: 4px 10px; font-size: 13px; }
+            
+            .controls {
+                margin: 4px 0 8px;
+                padding: 8px 10px;
+                gap: 6px;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                width: 100%;
+                max-width: 440px;
+                box-sizing: border-box;
+            }
+            .control-group {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 2px;
+                font-size: 11px;
+            }
+            select {
+                width: 100%;
+                max-width: 100%;
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+            .controls-actions {
+                grid-column: span 2;
+                display: flex;
+                gap: 8px;
+                margin-top: 2px;
+                width: 100%;
+            }
+            .controls-actions button {
+                flex: 1;
+                padding: 8px 10px;
+                font-size: 13px;
+                margin: 0;
+            }
+            .stats {
+                padding: 6px 14px;
+                margin-bottom: 8px;
+                font-size: 0.85rem;
+                gap: 12px;
+            }
+            .game-board {
+                gap: 8px;
+                max-width: 100%;
+                width: 100%;
+                padding: 0 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1 id="titleText">Memory Game Pro</h1>
+        <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+        <button class="icon-btn" onclick="toggleSound()" id="soundBtn">🔊</button>
+        <button class="icon-btn" onclick="showLeaderboard()">🏆</button>
+        <button class="icon-btn music-btn" onclick="toggleMusic()" id="musicBtn">🎵</button>
+    </div>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label id="lblLang" for="language">Lang: </label>
+            <select id="language" onchange="updateLanguage()">
+                <option value="en" selected>English 🇬🇧</option>
+                <option value="zh">中文 (Chinese) 🇨🇳</option>
+                <option value="hi">हिन्दी (Hindi) 🇮🇳</option>
+                <option value="es">Español (Spanish) 🇪🇸</option>
+                <option value="ar">العربية (Arabic) 🇸🇦</option>
+                <option value="fr">Français (French) 🇫🇷</option>
+                <option value="bn">বাংলা (Bengali) 🇧🇩</option>
+                <option value="ru">Русский (Russian) 🇷🇺</option>
+                <option value="pt">Português (Portuguese) 🇧🇷</option>
+                <option value="ur">اردو (Urdu) 🇵🇰</option>
+                <option value="id">Bahasa Indonesia 🇮🇩</option>
+                <option value="de">Deutsch (German) 🇩🇪</option>
+                <option value="ja">日本語 (Japanese) 🇯🇵</option>
+                <option value="sw">Kiswahili (Swahili) 🇹🇿</option>
+                <option value="tr">Türkçe (Turkish) 🇹🇷</option>
+                <option value="ko">한국어 (Korean) 🇰🇷</option>
+                <option value="it">Italiano (Italian) 🇮🇹</option>
+                <option value="so">Somali (Af-Soomaali) 🇸🇴</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label id="lblMode" for="mode">Mode: </label>
+            <select id="mode" onchange="handleModeChange()">
+                <option value="1P" id="opt1P">1 Player 👤</option>
+                <option value="2P" id="opt2P">2 Players 👥</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label id="lblTheme" for="theme">Theme: </label>
+            <select id="theme" onchange="resetGame()">
+                <option value="wildlife" id="optTheme1">Animals & Wildlife 🦁</option>
+                <option value="vehicles" id="optTheme2">Supercars & Vehicles 🏎️</option>
+                <option value="landmarks" id="optTheme3">World Landmarks 🏛️</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label id="lblLevel" for="difficulty">Level: </label>
+            <select id="difficulty" onchange="resetGame()">
+                <option value="easy" id="optEasy">Easy (4x3)</option>
+                <option value="medium" id="optMed" selected>Medium (4x4)</option>
+                <option value="hard" id="optHard">Hard (6x4)</option>
+            </select>
+        </div>
+
+        <div class="controls-actions">
+            <button id="btnRestart" onclick="resetGame()">Restart</button>
+            <button id="btnHint" onclick="useHint()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">💡 Hint</button>
+        </div>
+    </div>
+
+    <div class="stats" id="statsPanel"></div>
+
+    <div class="game-board" id="board"></div>
+
+    <!-- Win Modal -->
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">🎉 Game Over!</h2>
+            <div class="stars" id="modalStars">⭐⭐⭐</div>
+            <p id="modalMsg">Your score: 0</p>
+            <button onclick="closeModal()" id="btnPlayAgain">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Names Input Modal -->
+    <div class="modal" id="namesModal">
+        <div class="modal-content">
+            <h2 id="modalNamesTitle">Enter Player Names 👥</h2>
+            <div class="player-inputs">
+                <input type="text" id="p1NameInput" placeholder="Player 1 Name" value="Player 1">
+                <input type="text" id="p2NameInput" placeholder="Player 2 Name" value="Player 2">
+            </div>
+            <button onclick="savePlayerNames()" id="btnStartGame">Start Game</button>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div class="modal" id="leaderboardModal">
+        <div class="modal-content">
+            <h2 id="modalLeaderboardTitle">🏆 Leaderboard</h2>
+            <ol class="leaderboard-list" id="leaderboardList"></ol>
+            <button onclick="closeLeaderboard()" id="btnCloseLeaderboard">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const board = document.getElementById('board');
+        const difficultySelect = document.getElementById('difficulty');
+        const themeSelect = document.getElementById('theme');
+        const languageSelect = document.getElementById('language');
+        const modeSelect = document.getElementById('mode');
+        const statsPanel = document.getElementById('statsPanel');
+        
+        // Pure localized card names per language
+        const CARD_NAMES = {
+            so: {
+                lion: "Libaax", cheetah: "Harimacad", camel: "Geel", falcon: "Shimbir",
+                elephant: "Maroodi", horse: "Faras", giraffe: "Gariir", zebra: "Dameer-farow",
+                eagle: "Gorgor", dolphin: "Hoonbaro", leopard: "Shabeel", owl: "Guuguule",
+                car_red: "Supercar Cas", car_blue: "Hypercar Buluug", car_yellow: "Lamborghini Jaalle",
+                suv_luxury: "SUV Raaxo", jet: "Diyaarad Gaar ah", yacht: "Markab Raaxo",
+                moto: "Mooto Dheereysa", helicopter: "Helikobtar", train_bullet: "Tareenka Xawaaraha",
+                classic_car: "Baabuur Classic", speedboat: "Doon Dheereysa", truck_heavy: "Gaari Xamuul",
+                pyramids: "Ahraamta Masar", eiffel: "Taallada Eiffel", tajmahal: "Taaj Maxal",
+                burjkhalifa: "Burj Khaliifa", fuji: "Buurta Fuji", colosseum: "Colosseum",
+                greatwall: "Derbiga Shiinaha", bigben: "Big Ben", statue_liberty: "Taallada Xorriyadda",
+                sydney_opera: "Sydney Opera", petra: "Magaalada Petra", machupicchu: "Machu Picchu"
+            },
+            en: {
+                lion: "Lion", cheetah: "Cheetah", camel: "Camel", falcon: "Falcon",
+                elephant: "Elephant", horse: "Horse", giraffe: "Giraffe", zebra: "Zebra",
+                eagle: "Eagle", dolphin: "Dolphin", leopard: "Leopard", owl: "Owl",
+                car_red: "Red Supercar", car_blue: "Blue Hypercar", car_yellow: "Yellow Lamborghini",
+                suv_luxury: "Luxury SUV", jet: "Private Jet", yacht: "Mega Yacht",
+                moto: "Sports Motorcycle", helicopter: "Executive Helicopter", train_bullet: "Bullet Train",
+                classic_car: "Classic Car", speedboat: "Racing Speedboat", truck_heavy: "Semi Truck",
+                pyramids: "Pyramids of Giza", eiffel: "Eiffel Tower", tajmahal: "Taj Mahal",
+                burjkhalifa: "Burj Khalifa", fuji: "Mount Fuji", colosseum: "Colosseum",
+                greatwall: "Great Wall of China", bigben: "Big Ben", statue_liberty: "Statue of Liberty",
+                sydney_opera: "Sydney Opera", petra: "Petra Treasury", machupicchu: "Machu Picchu"
+            },
+            ar: {
+                lion: "أسد", cheetah: "فهد", camel: "جمل", falcon: "صقر",
+                elephant: "فيل", horse: "حصان", giraffe: "زرافة", zebra: "حمار وحشي",
+                eagle: "نسر", dolphin: "دلفين", leopard: "نمر", owl: "بومة",
+                car_red: "سيارة خارقة حمراء", car_blue: "سيارة فائقة زرقاء", car_yellow: "لامبورغيني صفراء",
+                suv_luxury: "سيارة دفع رباعي", jet: "طائرة خاصة", yacht: "يخت فاخر",
+                moto: "دراجة نارية", helicopter: "مروحية", train_bullet: "قطار فائق السرعة",
+                classic_car: "سيارة كلاسيكية", speedboat: "زورق سريع", truck_heavy: "شاحنة نقل",
+                pyramids: "أهرامات الجيزة", eiffel: "برج إيفل", tajmahal: "تاج محل",
+                burjkhalifa: "برج خليفة", fuji: "جبل فوجي", colosseum: "الكولوسيوم",
+                greatwall: "سور الصين العظيم", bigben: "ساعة بيغ بن", statue_liberty: "تمثال الحرية",
+                sydney_opera: "أوبرا سيدني", petra: "البتراء", machupicchu: "ماتشو بيتشو"
+            },
+            zh: {
+                lion: "狮子", cheetah: "猎豹", camel: "骆驼", falcon: "猎鹰",
+                elephant: "大象", horse: "骏马", giraffe: "长颈鹿", zebra: "斑马",
+                eagle: "雄鹰", dolphin: "海豚", leopard: "金钱豹", owl: "猫头鹰",
+                car_red: "红色超跑", car_blue: "蓝色超跑", car_yellow: "黄色兰博基尼",
+                suv_luxury: "豪华SUV", jet: "私人飞机", yacht: "豪华游艇",
+                moto: "摩托跑车", helicopter: "直升机", train_bullet: "高速列车",
+                classic_car: "复古老爷车", speedboat: "快艇", truck_heavy: "重型卡车",
+                pyramids: "吉萨金字塔", eiffel: "埃菲尔铁塔", tajmahal: "泰姬陵",
+                burjkhalifa: "哈利法塔", fuji: "富士山", colosseum: "罗马斗兽场",
+                greatwall: "万里长城", bigben: "大本钟", statue_liberty: "自由女神像",
+                sydney_opera: "悉尼歌剧院", petra: "佩特拉古城", machupicchu: "马丘比丘"
+            },
+            es: {
+                lion: "León", cheetah: "Guepardo", camel: "Camello", falcon: "Halcón",
+                elephant: "Elefante", horse: "Caballo", giraffe: "Jirafa", zebra: "Cebra",
+                eagle: "Águila", dolphin: "Delfín", leopard: "Leopardo", owl: "Búho",
+                car_red: "Superdeportivo Rojo", car_blue: "Hiperdeportivo Azul", car_yellow: "Lamborghini Amarillo",
+                suv_luxury: "SUV de Lujo", jet: "Jet Privado", yacht: "Yate de Lujo",
+                moto: "Moto Deportiva", helicopter: "Helicóptero", train_bullet: "Tren Bala",
+                classic_car: "Coche Clásico", speedboat: "Lancha Rápida", truck_heavy: "Camión Pesado",
+                pyramids: "Pirámides de Guiza", eiffel: "Torre Eiffel", tajmahal: "Taj Mahal",
+                burjkhalifa: "Burj Khalifa", fuji: "Monte Fuji", colosseum: "Coliseo Romano",
+                greatwall: "Gran Muralla China", bigben: "Big Ben", statue_liberty: "Estatua de la Libertad",
+                sydney_opera: "Ópera de Sídney", petra: "Petra", machupicchu: "Machu Picchu"
+            },
+            fr: {
+                lion: "Lion", cheetah: "Guépard", camel: "Chameau", falcon: "Faucon",
+                elephant: "Éléphant", horse: "Cheval", giraffe: "Girafe", zebra: "Zèbre",
+                eagle: "Aigle", dolphin: "Dauphin", leopard: "Léopard", owl: "Chouette",
+                car_red: "Supercar Rouge", car_blue: "Hypercar Bleue", car_yellow: "Lamborghini Jaune",
+                suv_luxury: "SUV de Luxe", jet: "Jet Privé", yacht: "Superyacht",
+                moto: "Moto Sportive", helicopter: "Hélicoptère", train_bullet: "Train à Grande Vitesse",
+                classic_car: "Voiture de Collection", speedboat: "Bateau à Moteur", truck_heavy: "Camion Semi-Remorque",
+                pyramids: "Pyramides de Gizeh", eiffel: "Tour Eiffel", tajmahal: "Taj Mahal",
+                burjkhalifa: "Burj Khalifa", fuji: "Mont Fuji", colosseum: "Colisée",
+                greatwall: "Grande Muraille", bigben: "Big Ben", statue_liberty: "Statue de la Liberté",
+                sydney_opera: "Opéra de Sydney", petra: "Pétra", machupicchu: "Machu Picchu"
+            }
+        };
+
+        const translations = {
+            en: { 
+                title: "Memory Game Pro", lang: "Lang:", mode: "Mode:", theme: "Theme:", level: "Level:", restart: "Restart", hint: "💡 Hint",
+                mode1P: "1 Player 👤", mode2P: "2 Players 👥",
+                easy: "Easy (4x3)", med: "Medium (4x4)", hard: "Hard (6x4)",
+                time: "Time", score: "Score", high: "High Score", 
+                theme1: "Animals & Wildlife 🦁", theme2: "Supercars & Vehicles 🏎️", theme3: "World Landmarks 🏛️", 
+                win: "🎉 Congratulations!", lose: "Time is up! Game Over 😞",
+                playAgain: "Play Again", start: "Start Game", close: "Close"
+            },
+            so: { 
+                title: "Ciyaarta Xusuusta Pro", lang: "Luuqadda:", mode: "Habka:", theme: "Mawduuca:", level: "Heerka:", restart: "Dib u Bilow", hint: "💡 Caawin",
+                mode1P: "1 Ciyaaryahan 👤", mode2P: "2 Ciyaaryahan 👥",
+                easy: "Fudud (4x3)", med: "Dhexdhexaad (4x4)", hard: "Adag (6x4)",
+                time: "Waqtiga", score: "Dhibcaha", high: "Dhibcaha Sare", 
+                theme1: "Xayawaanka & Duurjoogta 🦁", theme2: "Baabuurta & Gaadiidka 🏎️", theme3: "Dhismayaasha Caanka ah 🏛️", 
+                win: "🎉 Hambalyo! Waad Guuleysatay!", lose: "Waqtigu wuu dhacay! Ciyaartu way idlaatay 😞",
+                playAgain: "Mar Kale Ciyaar", start: "Bilow Ciyaarta", close: "Xidh"
+            },
+            ar: { 
+                title: "لعبة الذاكرة الاحترافية", lang: "اللغة:", mode: "الوضع:", theme: "المظهر:", level: "المستوى:", restart: "إعادة التشغيل", hint: "💡 تلميح",
+                mode1P: "لاعب واحد 👤", mode2P: "لاعبان 👥",
+                easy: "سهل (4x3)", med: "متوسط (4x4)", hard: "صعب (6x4)",
+                time: "الوقت", score: "النتيجة", high: "أعلى نتيجة", 
+                theme1: "الحيوانات والحياة البرية 🦁", theme2: "السيارات الفاخرة والمركبات 🏎️", theme3: "معالم العالم الشهيرة 🏛️", 
+                win: "🎉 تهانينا! لقد فزت!", lose: "انتهى الوقت! انتهت اللعبة 😞",
+                playAgain: "العب مرة أخرى", start: "ابدأ اللعبة", close: "إغلاق"
+            },
+            zh: { 
+                title: "记忆大师专业版", lang: "语言:", mode: "模式:", theme: "主题:", level: "难度:", restart: "重新开始", hint: "💡 提示",
+                mode1P: "单人模式 👤", mode2P: "双人对战 👥",
+                easy: "简单 (4x3)", med: "中等 (4x4)", hard: "困难 (6x4)",
+                time: "时间", score: "得分", high: "最高分", 
+                theme1: "野生动物 🦁", theme2: "超级跑车 🏎️", theme3: "世界名胜 🏛️", 
+                win: "🎉 恭喜你获胜！", lose: "时间到！游戏结束 😞",
+                playAgain: "再玩一次", start: "开始游戏", close: "关闭"
+            },
+            hi: { 
+                title: "मेमोरी गेम प्रो", lang: "भाषा:", mode: "मोड:", theme: "थीम:", level: "स्तर:", restart: "पुनः प्रारंभ करें", hint: "💡 संकेत",
+                mode1P: "1 खिलाड़ी 👤", mode2P: "2 खिलाड़ी 👥",
+                easy: "सरल (4x3)", med: "मध्यम (4x4)", hard: "कठिन (6x4)",
+                time: "समय", score: "स्कोर", high: "उच्चतम स्कोर", 
+                theme1: "वन्यजीव और पशु 🦁", theme2: "सुपरकार और वाहन 🏎️", theme3: "विश्व धरोहर और स्थल 🏛️", 
+                win: "🎉 बधाई हो! आप जीत गए!", lose: "समय समाप्त! खेल खत्म 😞",
+                playAgain: "फिर से खेलें", start: "खेल शुरू करें", close: "बंद करें"
+            },
+            es: { 
+                title: "Juego de Memoria Pro", lang: "Idioma:", mode: "Modo:", theme: "Tema:", level: "Nivel:", restart: "Reiniciar", hint: "💡 Pista",
+                mode1P: "1 Jugador 👤", mode2P: "2 Jugadores 👥",
+                easy: "Fácil (4x3)", med: "Medio (4x4)", hard: "Difícil (6x4)",
+                time: "Tiempo", score: "Puntos", high: "Récord", 
+                theme1: "Animales y Fauna 🦁", theme2: "Superdeportivos 🏎️", theme3: "Monumentos del Mundo 🏛️", 
+                win: "🎉 ¡Felicidades!", lose: "¡Se acabó el tiempo! Fin del juego 😞",
+                playAgain: "Jugar de nuevo", start: "Comenzar", close: "Cerrar"
+            },
+            fr: { 
+                title: "Jeu de Mémoire Pro", lang: "Langue:", mode: "Mode:", theme: "Thème:", level: "Niveau:", restart: "Recommencer", hint: "💡 Indice",
+                mode1P: "1 Joueur 👤", mode2P: "2 Joueurs 👥",
+                easy: "Facile (4x3)", med: "Moyen (4x4)", hard: "Difficile (6x4)",
+                time: "Temps", score: "Score", high: "Meilleur Score", 
+                theme1: "Animaux Sauvages 🦁", theme2: "Supercars & Véhicules 🏎️", theme3: "Monuments Célèbres 🏛️", 
+                win: "🎉 Félicitations!", lose: "Temps écoulé! Fin de partie 😞",
+                playAgain: "Rejouer", start: "Commencer", close: "Fermer"
+            },
+            bn: { 
+                title: "মেমোরি গেম প্রো", lang: "ভাষা:", mode: "মোড:", theme: "থিম:", level: "লেভেল:", restart: "পুনরায় শুরু", hint: "💡 ইঙ্গিত",
+                mode1P: "১ জন খেলোয়াড় 👤", mode2P: "২ জন খেলোয়াড় 👥",
+                easy: "সহজ (4x3)", med: "মাঝারি (4x4)", hard: "কঠিন (6x4)",
+                time: "সময়", score: "স্কোর", high: "সর্বোচ্চ স্কোর", 
+                theme1: "বন্যপ্রাণী ও পশু 🦁", theme2: "সুপারকার ও যানবাহন 🏎️", theme3: "বিশ্বের দর্শনীয় স্থান 🏛️", 
+                win: "🎉 অভিনন্দন! আপনি জিতেছেন!", lose: "সময় শেষ! খেলা সমাপ্ত 😞",
+                playAgain: "আবার খেলুন", start: "শুরু করুন", close: "বন্ধ করুন"
+            },
+            ru: { 
+                title: "Игра на память Про", lang: "Язык:", mode: "Режим:", theme: "Тема:", level: "Уровень:", restart: "Заново", hint: "💡 Подсказка",
+                mode1P: "1 Игрок 👤", mode2P: "2 Игрока 👥",
+                easy: "Легкий (4x3)", med: "Средний (4x4)", hard: "Сложный (6x4)",
+                time: "Время", score: "Счёт", high: "Рекорд", 
+                theme1: "Дикие животные 🦁", theme2: "Суперкары и транспорт 🏎️", theme3: "Достопримечательности 🏛️", 
+                win: "🎉 Поздравляем! Победа!", lose: "Время вышло! Игра окончена 😞",
+                playAgain: "Играть снова", start: "Начать игру", close: "Закрыть"
+            },
+            pt: { 
+                title: "Jogo da Memória Pro", lang: "Idioma:", mode: "Modo:", theme: "Tema:", level: "Nível:", restart: "Reiniciar", hint: "💡 Dica",
+                mode1P: "1 Jogador 👤", mode2P: "2 Jogadores 👥",
+                easy: "Fácil (4x3)", med: "Médio (4x4)", hard: "Difícil (6x4)",
+                time: "Tempo", score: "Pontos", high: "Recorde", 
+                theme1: "Animais Selvagens 🦁", theme2: "Supercarros e Veículos 🏎️", theme3: "Monumentos Famosos 🏛️", 
+                win: "🎉 Parabéns! Você venceu!", lose: "O tempo acabou! Fim de jogo 😞",
+                playAgain: "Jogar novamente", start: "Iniciar", close: "Fechar"
+            },
+            ur: { 
+                title: "میموری گیم پرو", lang: "زبان:", mode: "موڈ:", theme: "تھیم:", level: "سطح:", restart: "دوبارہ شروع کریں", hint: "💡 اشارہ",
+                mode1P: "1 کھلاڑی 👤", mode2P: "2 کھلاڑی 👥",
+                easy: "آسان (4x3)", med: "درمیانہ (4x4)", hard: "مشکل (6x4)",
+                time: "وقت", score: "اسکور", high: "اعلیٰ اسکور", 
+                theme1: "جنگلی حیات اور جانور 🦁", theme2: "سپر کاریں اور گاڑیاں 🏎️", theme3: "دنیا کے تاریخی مقامات 🏛️", 
+                win: "🎉 مبارک ہو! آپ جیت گئے!", lose: "وقت ختم ہو گیا! کھیل ختم 😞",
+                playAgain: "دوبارہ کھیلیں", start: "کھیل شروع کریں", close: "بند کریں"
+            },
+            id: { 
+                title: "Game Memori Pro", lang: "Bahasa:", mode: "Mode:", theme: "Tema:", level: "Tingkat:", restart: "Ulangi", hint: "💡 Bantuan",
+                mode1P: "1 Pemain 👤", mode2P: "2 Pemain 👥",
+                easy: "Mudah (4x3)", med: "Sedang (4x4)", hard: "Sulit (6x4)",
+                time: "Waktu", score: "Skor", high: "Skor Tertinggi", 
+                theme1: "Satwa Liar 🦁", theme2: "Supercar & Kendaraan 🏎️", theme3: "Keajaiban Dunia 🏛️", 
+                win: "🎉 Selamat! Anda Menang!", lose: "Waktu habis! Game berakhir 😞",
+                playAgain: "Main Lagi", start: "Mulai", close: "Tutup"
+            },
+            de: { 
+                title: "Memory Game Pro", lang: "Sprache:", mode: "Modus:", theme: "Thema:", level: "Stufe:", restart: "Neustart", hint: "💡 Tipp",
+                mode1P: "1 Spieler 👤", mode2P: "2 Spieler 👥",
+                easy: "Einfach (4x3)", med: "Mittel (4x4)", hard: "Schwer (6x4)",
+                time: "Zeit", score: "Punkte", high: "Bestwert", 
+                theme1: "Tiere & Wildnis 🦁", theme2: "Supersportwagen 🏎️", theme3: "Weltwunder 🏛️", 
+                win: "🎉 Herzlichen Glückwunsch!", lose: "Zeit abgelaufen! Spiel vorbei 😞",
+                playAgain: "Erneut spielen", start: "Starten", close: "Schließen"
+            },
+            ja: { 
+                title: "メモリーゲーム Pro", lang: "言語:", mode: "モード:", theme: "テーマ:", level: "難易度:", restart: "リスタート", hint: "💡 ヒント",
+                mode1P: "1人プレイ 👤", mode2P: "2人対戦 👥",
+                easy: "初級 (4x3)", med: "中級 (4x4)", hard: "上級 (6x4)",
+                time: "時間", score: "スコア", high: "ハイスコア", 
+                theme1: "野生動物 🦁", theme2: "スーパーカー＆乗り物 🏎️", theme3: "世界の絶景・遺産 🏛️", 
+                win: "🎉 おめでとうございます！", lose: "時間切れ！ゲームオーバー 😞",
+                playAgain: "もう一度プレイ", start: "ゲーム開始", close: "閉じる"
+            },
+            sw: { 
+                title: "Mchezo wa Kumbukumbu Pro", lang: "Lugha:", mode: "Hali:", theme: "Mada:", level: "Kiwango:", restart: "Anzisha Upya", hint: "💡 Kidokezo",
+                mode1P: "Mchezaji 1 👤", mode2P: "Wachezaji 2 👥",
+                easy: "Rahisi (4x3)", med: "Kati (4x4)", hard: "Ngumu (6x4)",
+                time: "Muda", score: "Alama", high: "Alama za Juu", 
+                theme1: "Wanyamapori na Wanyama 🦁", theme2: "Magari ya Kifahari 🏎️", theme3: "Majengo Maarufu 🏛️", 
+                win: "🎉 Hongera! Umeshinda!", lose: "Muda umeisha! Mchezo umekwisha 😞",
+                playAgain: "Cheza Tena", start: "Anza Mchezo", close: "Funga"
+            },
+            tr: { 
+                title: "Hafıza Oyunu Pro", lang: "Dil:", mode: "Mod:", theme: "Tema:", level: "Seviye:", restart: "Yeniden Başlat", hint: "💡 İpucu",
+                mode1P: "1 Oyuncu 👤", mode2P: "2 Oyuncu 👥",
+                easy: "Kolay (4x3)", med: "Orta (4x4)", hard: "Zor (6x4)",
+                time: "Süre", score: "Skor", high: "En Yüksek Skor", 
+                theme1: "Hayvanlar ve Doğa 🦁", theme2: "Süper Arabalar ve Araçlar 🏎️", theme3: "Dünya Harikaları 🏛️", 
+                win: "🎉 Tebrikler! Kazandınız!", lose: "Süre doldu! Oyun bitti 😞",
+                playAgain: "Tekrar Oyna", start: "Başlat", close: "Kapat"
+            },
+            ko: { 
+                title: "메모리 게임 프로", lang: "언어:", mode: "모드:", theme: "테마:", level: "난이도:", restart: "다시 시작", hint: "💡 힌트",
+                mode1P: "1인용 👤", mode2P: "2인용 👥",
+                easy: "쉬움 (4x3)", med: "보통 (4x4)", hard: "어려움 (6x4)",
+                time: "시간", score: "점수", high: "최고 점수", 
+                theme1: "야생 동물 🦁", theme2: "슈퍼카 & 차량 🏎️", theme3: "세계의 랜드마크 🏛️", 
+                win: "🎉 축하합니다! 승리하셨습니다!", lose: "시간 초과! 게임 종료 😞",
+                playAgain: "다시 하기", start: "게임 시작", close: "닫기"
+            },
+            it: { 
+                title: "Memory Game Pro", lang: "Lingua:", mode: "Modalità:", theme: "Tema:", level: "Livello:", restart: "Riavvia", hint: "💡 Suggerimento",
+                mode1P: "1 Giocatore 👤", mode2P: "2 Giocatori 👥",
+                easy: "Facile (4x3)", med: "Medio (4x4)", hard: "Difficile (6x4)",
+                time: "Tempo", score: "Punteggio", high: "Record", 
+                theme1: "Animali Selvatici 🦁", theme2: "Supercar e Veicoli 🏎️", theme3: "Monumenti del Mondo 🏛️", 
+                win: "🎉 Congratulazioni!", lose: "Tempo scaduto! Partita finita 😞",
+                playAgain: "Gioca di nuovo", start: "Inizia", close: "Chiudi"
+            }
+        };
+
+        function getCardLabel(cardId, lang) {
+            if (CARD_NAMES[lang] && CARD_NAMES[lang][cardId]) {
+                return CARD_NAMES[lang][cardId];
+            }
+            if (CARD_NAMES.en && CARD_NAMES.en[cardId]) {
+                return CARD_NAMES.en[cardId];
+            }
+            return cardId;
+        }
+
+        // Theme 1: 12 Pure Real Animals & Wildlife
+        const THEME_WILDLIFE = [
+            { id: 'lion', src: 'images/lion.webp' },
+            { id: 'cheetah', src: 'images/cheetah.webp' },
+            { id: 'camel', src: 'images/camel.webp' },
+            { id: 'falcon', src: 'images/falcon.webp' },
+            { id: 'elephant', src: 'images/elephant.webp' },
+            { id: 'horse', src: 'images/horse.webp' },
+            { id: 'giraffe', src: 'images/giraffe.webp' },
+            { id: 'zebra', src: 'images/zebra.webp' },
+            { id: 'eagle', src: 'images/eagle.webp' },
+            { id: 'dolphin', src: 'images/dolphin.webp' },
+            { id: 'leopard', src: 'images/leopard.webp' },
+            { id: 'owl', src: 'images/owl.webp' }
+        ];
+
+        // Theme 2: 12 Pure Real Supercars & Vehicles (Zero animals)
+        const THEME_VEHICLES = [
+            { id: 'car_red', src: 'images/car_red.webp' },
+            { id: 'car_blue', src: 'images/car_blue.webp' },
+            { id: 'car_yellow', src: 'images/car_yellow.webp' },
+            { id: 'suv_luxury', src: 'images/suv_luxury.webp' },
+            { id: 'jet', src: 'images/jet.webp' },
+            { id: 'yacht', src: 'images/yacht.webp' },
+            { id: 'moto', src: 'images/moto.webp' },
+            { id: 'helicopter', src: 'images/helicopter.webp' },
+            { id: 'train_bullet', src: 'images/train_bullet.webp' },
+            { id: 'classic_car', src: 'images/classic_car.webp' },
+            { id: 'speedboat', src: 'images/speedboat.webp' },
+            { id: 'truck_heavy', src: 'images/truck_heavy.webp' }
+        ];
+
+        // Theme 3: 12 Pure Real World Landmarks & Monuments (Zero animals, Makkah removed)
+        const THEME_LANDMARKS = [
+            { id: 'pyramids', src: 'images/pyramids.webp' },
+            { id: 'eiffel', src: 'images/eiffel.webp' },
+            { id: 'tajmahal', src: 'images/tajmahal.webp' },
+            { id: 'burjkhalifa', src: 'images/burjkhalifa.webp' },
+            { id: 'fuji', src: 'images/fuji.webp' },
+            { id: 'colosseum', src: 'images/colosseum.webp' },
+            { id: 'greatwall', src: 'images/greatwall.webp' },
+            { id: 'bigben', src: 'images/bigben.webp' },
+            { id: 'statue_liberty', src: 'images/statue_liberty.webp' },
+            { id: 'sydney_opera', src: 'images/sydney_opera.webp' },
+            { id: 'petra', src: 'images/petra.webp' },
+            { id: 'machupicchu', src: 'images/machupicchu.webp' }
+        ];
+
+        const themes = {
+            wildlife: THEME_WILDLIFE,
+            vehicles: THEME_VEHICLES,
+            landmarks: THEME_LANDMARKS
+        };
+        
+        const settings = {
+            easy: { cols: 4, rows: 3, time: 40 },
+            medium: { cols: 4, rows: 4, time: 45 },
+            hard: { cols: 6, rows: 4, time: 60 }
+        };
+
+        let flippedCards = [], matchedPairs = 0, score = 0, timeLeft, gameActive = false, countdown;
+        let combo = 0, soundMuted = false, hintUsed = false;
+        let audioCtx;
+
+        // --- MUSIC SYSTEM ---
+        let musicIntervalId = null;
+        let musicOn = false;
+        let currentBeat = 0;
+        const BPM = 138;
+        const BEAT_DURATION = 60 / BPM; 
+
+        function toggleMusic() {
+            if (musicOn) {
+                stopMusic();
+            } else {
+                startMusic();
+            }
+        }
+
+        function stopMusic() {
+            if (musicIntervalId) {
+                clearInterval(musicIntervalId);
+                musicIntervalId = null;
+            }
+            musicOn = false;
+            document.getElementById('musicBtn').textContent = '🎵';
+            document.getElementById('musicBtn').classList.remove('playing');
+        }
+
+        function startMusic() {
+            if (musicOn) return;
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            musicOn = true;
+            currentBeat = 0;
+            document.getElementById('musicBtn').textContent = '🔊';
+            document.getElementById('musicBtn').classList.add('playing');
+
+            if (musicIntervalId) clearInterval(musicIntervalId);
+            
+            playBeat(currentBeat);
+            currentBeat++;
+
+            musicIntervalId = setInterval(() => {
+                if (currentBeat >= 16) currentBeat = 0;
+                playBeat(currentBeat);
+                currentBeat++;
+            }, BEAT_DURATION * 1000);
+        }
+
+        function playKick() {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } catch(e) {}
+        }
+
+        function playSnare() {
+            if (!audioCtx) return;
+            try {
+                const bufferSize = audioCtx.sampleRate * 0.05;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                noise.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start();
+                noise.stop(audioCtx.currentTime + 0.05);
+            } catch(e) {}
+        }
+
+        function playHat() {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(6000, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.02);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.02);
+            } catch(e) {}
+        }
+
+        function playTone(freq, duration, type, volume) {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type || 'square';
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(volume || 0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playBeat(beat) {
+            if (beat % 4 === 0) playKick();
+            if (beat % 4 === 2) playSnare();
+            if (beat % 2 === 1) playHat();
+            
+            let bassFreq = 65.4;
+            if (beat < 4) bassFreq = 65.4;
+            else if (beat < 8) bassFreq = 98.0;
+            else if (beat < 12) bassFreq = 110.0;
+            else bassFreq = 87.3;
+            
+            if (beat % 2 === 0) {
+                playTone(bassFreq, 0.15, 'sawtooth', 0.07);
+            }
+
+            const melodyNotes = [523.25, 587.33, 659.25, 783.99, 880.00, 987.77, 1046.50];
+            let idx = (beat * 3) % melodyNotes.length;
+            if (beat % 2 === 0) {
+                playTone(melodyNotes[idx], 0.1, 'square', 0.04);
+            }
+            if (beat % 2 === 1) {
+                let idx2 = (beat * 5) % melodyNotes.length;
+                playTone(melodyNotes[idx2] * 0.5, 0.08, 'sine', 0.03);
+            }
+        }
+
+        // --- END MUSIC SYSTEM ---
+
+        let currentPlayer = 1;
+        let p1Name = "Player 1", p2Name = "Player 2";
+        let p1Score = 0, p2Score = 0;
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            document.getElementById('themeBtn').textContent = isLight ? '☀️' : '🌙';
+        }
+
+        function toggleSound() {
+            soundMuted = !soundMuted;
+            document.getElementById('soundBtn').textContent = soundMuted ? '🔇' : '🔊';
+        }
+
+        function handleModeChange() {
+            if (modeSelect.value === '2P') {
+                document.getElementById('namesModal').style.display = 'flex';
+            } else {
+                resetGame();
+            }
+        }
+
+        function savePlayerNames() {
+            const input1 = document.getElementById('p1NameInput').value.trim();
+            const input2 = document.getElementById('p2NameInput').value.trim();
+            p1Name = input1 || "Player 1";
+            p2Name = input2 || "Player 2";
+            document.getElementById('namesModal').style.display = 'none';
+            resetGame();
+        }
+
+        function updateLanguage() {
+            const lang = languageSelect.value;
+            const t = translations[lang] || translations.en;
+
+            document.getElementById('titleText').textContent = t.title;
+            document.getElementById('lblLang').textContent = t.lang;
+            document.getElementById('lblMode').textContent = t.mode;
+            document.getElementById('lblTheme').textContent = t.theme;
+            document.getElementById('lblLevel').textContent = t.level;
+            document.getElementById('btnRestart').textContent = t.restart;
+            document.getElementById('btnHint').textContent = t.hint || "💡 Hint";
+
+            document.getElementById('opt1P').textContent = t.mode1P;
+            document.getElementById('opt2P').textContent = t.mode2P;
+
+            document.getElementById('optEasy').textContent = t.easy;
+            document.getElementById('optMed').textContent = t.med;
+            document.getElementById('optHard').textContent = t.hard;
+
+            document.getElementById('optTheme1').textContent = t.theme1;
+            document.getElementById('optTheme2').textContent = t.theme2;
+            document.getElementById('optTheme3').textContent = t.theme3;
+
+            if (document.getElementById('btnPlayAgain')) document.getElementById('btnPlayAgain').textContent = t.playAgain;
+            if (document.getElementById('btnStartGame')) document.getElementById('btnStartGame').textContent = t.start;
+            if (document.getElementById('btnCloseLeaderboard')) document.getElementById('btnCloseLeaderboard').textContent = t.close;
+
+            // Dynamically update card captions on the board to pure language
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                const sym = card.dataset.symbol;
+                const captionEl = card.querySelector('.card-caption');
+                if (sym && captionEl) {
+                    captionEl.textContent = getCardLabel(sym, lang);
+                }
+            });
+
+            renderStatsUI();
+        }
+
+        function renderStatsUI() {
+            const is2P = modeSelect.value === '2P';
+            const t = translations[languageSelect.value] || translations.en;
+
+            if (is2P) {
+                statsPanel.innerHTML = `
+                    <div><span class="${currentPlayer === 1 ? 'active-player' : ''}">${p1Name}:</span> <span id="p1Score">${p1Score}</span></div>
+                    <div><span class="${currentPlayer === 2 ? 'active-player' : ''}">${p2Name}:</span> <span id="p2Score">${p2Score}</span></div>
+                `;
+            } else {
+                statsPanel.innerHTML = `
+                    <div>${t.time}: <span id="timer">${timeLeft || 45}</span>s</div>
+                    <div>${t.score}: <span id="score">${score}</span></div>
+                    <div>${t.high}: <span id="highScore">${getHighScore()}</span></div>
+                    <div class="combo-badge" id="comboBadge">2x Combo! 🔥</div>
+                `;
+            }
+        }
+
+        function playSound(type) {
+            if (soundMuted) return;
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'flip') {
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'match') {
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                } else if (type === 'wrong') {
+                    osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                } else if (type === 'win') {
+                    osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(1000, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+                }
+            } catch(e) {}
+        }
+
+        // Safe storage: works even if the APK WebView blocks localStorage
+        const _memStore = {};
+        const safeStorage = {
+            getItem(k) {
+                try { const v = window.localStorage.getItem(k); if (v !== null) return v; } catch (e) {}
+                return Object.prototype.hasOwnProperty.call(_memStore, k) ? _memStore[k] : null;
+            },
+            setItem(k, v) {
+                _memStore[k] = String(v);
+                try { window.safeStorage.setItem(k, v); } catch (e) {}
+            }
+        };
+        function safeParse(str, fallback) {
+            try { const v = JSON.parse(str); return v || fallback; } catch (e) { return fallback; }
+        }
+
+        function getHighScore() {
+            return safeStorage.getItem('memoryHighScore') || 0;
+        }
+
+        function saveLeaderboardScore(newScore) {
+            let leaderboard = safeParse(safeStorage.getItem('memoryLeaderboard'), []);
+            leaderboard.push({ score: newScore, date: new Date().toLocaleDateString() });
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard = leaderboard.slice(0, 5);
+            safeStorage.setItem('memoryLeaderboard', JSON.stringify(leaderboard));
+            
+            if (newScore > getHighScore()) {
+                safeStorage.setItem('memoryHighScore', newScore);
+            }
+        }
+
+        function showLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            const leaderboard = safeParse(safeStorage.getItem('memoryLeaderboard'), []);
+            list.innerHTML = leaderboard.length === 0 
+                ? '<li>No high scores yet!</li>' 
+                : leaderboard.map((item, idx) => `<li><span>#${idx+1} Score: <b>${item.score}</b></span> <span>${item.date}</span></li>`).join('');
+            document.getElementById('leaderboardModal').style.display = 'flex';
+        }
+
+        function closeLeaderboard() {
+            document.getElementById('leaderboardModal').style.display = 'none';
+        }
+
+        function useHint() {
+            if (!gameActive || hintUsed || flippedCards.length > 0) return;
+            const unmatchedCards = Array.from(document.querySelectorAll('.card:not(.matched)'));
+            if (unmatchedCards.length < 2) return;
+
+            const map = {};
+            let pair = [];
+            for (let card of unmatchedCards) {
+                let sym = card.dataset.symbol;
+                if (map[sym]) {
+                    pair = [map[sym], card];
+                    break;
+                }
+                map[sym] = card;
+            }
+
+            if (pair.length === 2) {
+                hintUsed = true;
+                document.getElementById('btnHint').style.opacity = '0.5';
+                pair[0].classList.add('hint-glow');
+                pair[1].classList.add('hint-glow');
+                setTimeout(() => {
+                    pair[0].classList.remove('hint-glow');
+                    pair[1].classList.remove('hint-glow');
+                }, 1500);
+            }
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+
+        function startGame() {
+            board.innerHTML = '';
+            gameActive = true; 
+            matchedPairs = 0; 
+            score = 0;
+            combo = 0;
+            currentPlayer = 1;
+            p1Score = 0;
+            p2Score = 0;
+            hintUsed = false;
+            flippedCards = [];
+            
+            document.getElementById('btnHint').style.opacity = '1';
+
+            const currentLang = languageSelect.value;
+            const level = settings[difficultySelect.value];
+            const activeTheme = themes[themeSelect.value] || themes.wildlife;
+            const totalCards = level.cols * level.rows;
+            const pairsNeeded = totalCards / 2;
+
+            renderStatsUI();
+
+            board.style.gridTemplateColumns = `repeat(${level.cols}, 1fr)`;
+
+            let chosenCards = activeTheme.slice(0, pairsNeeded);
+            let gameCards = [...chosenCards, ...chosenCards];
+            for (let i = gameCards.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [gameCards[i], gameCards[j]] = [gameCards[j], gameCards[i]]; }
+            
+            gameCards.forEach(item => {
+                const cardLabel = getCardLabel(item.id, currentLang);
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.innerHTML = `
+                    <div class="card-face card-front"></div>
+                    <div class="card-face card-back">
+                        <img src="${item.src}" alt="${cardLabel}" class="card-img" loading="lazy" />
+                        <div class="card-caption">${cardLabel}</div>
+                    </div>
+                `;
+                card.dataset.symbol = item.id;
+                card.addEventListener('click', flip);
+                board.appendChild(card);
+            });
+
+            if (modeSelect.value === '1P') {
+                startTimer(level.time);
+            } else {
+                clearInterval(countdown);
+            }
+        }
+
+        function startTimer(seconds) {
+            clearInterval(countdown); 
+            timeLeft = seconds;
+            const timerDisplay = document.getElementById('timer');
+            if (timerDisplay) timerDisplay.textContent = timeLeft;
+
+            countdown = setInterval(() => {
+                if (timeLeft > 0 && gameActive) {
+                    timeLeft--;
+                    if (document.getElementById('timer')) document.getElementById('timer').textContent = timeLeft;
+                } else if (gameActive) {
+                    const t = translations[languageSelect.value] || translations.en;
+                    saveLeaderboardScore(score);
+                    showModal(t.lose, "💔", `Final score: ${score}`);
+                }
+            }, 1000);
+        }
+
+        function flip() {
+            if (!gameActive || flippedCards.length >= 2 || this.classList.contains('flipped') || this.classList.contains('matched')) return;
+            
+            playSound('flip');
+            this.classList.add('flipped');
+            flippedCards.push(this);
+            
+            if (flippedCards.length === 2) checkMatch();
+        }
+
+        function checkMatch() {
+            const [c1, c2] = flippedCards;
+            const totalPairs = (settings[difficultySelect.value].cols * settings[difficultySelect.value].rows) / 2;
+            const is2P = modeSelect.value === '2P';
+
+            if (c1.dataset.symbol === c2.dataset.symbol) {
+                playSound('match');
+                c1.classList.add('matched');
+                c2.classList.add('matched');
+                matchedPairs++;
+                
+                if (is2P) {
+                    if (currentPlayer === 1) p1Score += 10;
+                    else p2Score += 10;
+                    renderStatsUI();
+                } else {
+                    combo++;
+                    const comboBadge = document.getElementById('comboBadge');
+                    if (combo > 1 && comboBadge) {
+                        comboBadge.textContent = `${combo}x Combo! 🔥`;
+                        comboBadge.style.display = 'block';
+                    }
+
+                    score += (10 + timeLeft) * combo;
+                    if (document.getElementById('score')) document.getElementById('score').textContent = score;
+                }
+
+                flippedCards = [];
+
+                if (matchedPairs === totalPairs) {
+                    playSound('win');
+                    triggerConfetti();
+                    const t = translations[languageSelect.value] || translations.en;
+                    
+                    if (is2P) {
+                        let winMsg = p1Score > p2Score ? `${p1Name} Wins! 🎉` : p2Score > p1Score ? `${p2Name} Wins! 🎉` : "It's a Tie! 🤝";
+                        showModal(winMsg, "🏆", `${p1Name}: ${p1Score} | ${p2Name}: ${p2Score}`);
+                    } else {
+                        saveLeaderboardScore(score);
+                        let stars = score > 300 ? "⭐⭐⭐" : score > 150 ? "⭐⭐" : "⭐";
+                        showModal(t.win, stars, `Final score: ${score}`);
+                    }
+                }
+            } else {
+                if (is2P) {
+                    currentPlayer = currentPlayer === 1 ? 2 : 1;
+                    renderStatsUI();
+                } else {
+                    combo = 0;
+                    const comboBadge = document.getElementById('comboBadge');
+                    if (comboBadge) comboBadge.style.display = 'none';
+                }
+
+                playSound('wrong');
+                c1.classList.add('wrong');
+                c2.classList.add('wrong');
+
+                setTimeout(() => {
+                    c1.classList.remove('flipped', 'wrong');
+                    c2.classList.remove('flipped', 'wrong');
+                    flippedCards = [];
+                }, 700);
+            }
+        }
+
+        function showModal(title, stars, msg) {
+            gameActive = false;
+            clearInterval(countdown);
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalStars').textContent = stars;
+            document.getElementById('modalMsg').textContent = msg;
+            document.getElementById('winModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('winModal').style.display = 'none';
+            startGame();
+        }
+
+        function resetGame() { startGame(); }
+        
+        try {
+            updateLanguage();
+            startGame();
+        } catch (err) {
+            const d = document.createElement('div');
+            d.style.cssText = 'color:#fecaca;background:#7f1d1d;padding:10px;border-radius:8px;margin:10px;font-size:12px;max-width:100%;word-break:break-word';
+            d.textContent = 'Error: ' + (err && err.message ? err.message : err);
+            document.body.appendChild(d);
+            try { startGame(); } catch (e2) {}
+        }
+    </script>
+</body>
+</html>
